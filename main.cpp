@@ -9,7 +9,7 @@
 #include "controller_mapping.h"
 #include "palettes.h"
 
-#define LED_PIN 5
+const int LED_PIN = 5;
 #define NUM_LEDS 3
 #define LED_TYPE WS2812
 #define COLOR_ORDER GRB
