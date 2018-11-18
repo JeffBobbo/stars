@@ -186,13 +186,13 @@ void handleIR(const uint32_t value)
   }
 }
 
-void FillLEDsFromPaletteColors(uint8_t colorIndex)
+void fillLEDs(uint8_t colorIndex)
 {
-    for (int i = 0; i < NUM_LEDS; ++i)
-    {
-        leds[i] = ColorFromPalette(currentPalette, colorIndex, 255, currentBlending);
-        colorIndex += 3;
-    }
+  for (int i = 0; i < NUM_LEDS; ++i)
+  {
+    leds[i] = ColorFromPalette(currentPalette, colorIndex, 255, currentBlending);
+    colorIndex += 3;
+  }
 }
 
 void setup()
@@ -252,7 +252,7 @@ void loop()
     if (paused == false)
       startIndex = startIndex + speed; /* motion speed */
 
-    FillLEDsFromPaletteColors(startIndex);
+    fillLEDs(startIndex);
   }
 
   FastLED.show();
