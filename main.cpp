@@ -21,15 +21,16 @@ const int RECV_PIN = 7;
 IRrecv irrecv(RECV_PIN);
 decode_results results;
 
-bool edit = false;
-
 enum Mode {
   SOLID = 0,
   FADE,
   JUMP,
   TWINKLE
 };
+
+bool editMode = false;
 bool usePalette = false;
+bool autoMode = false;
 
 uint32_t buttonColour(const uint32_t button)
 {
@@ -77,6 +78,28 @@ uint32_t buttonColour(const uint32_t button)
 }
 
 Mode mode;
+void buttonMode(const uint32_t button)
+{
+  switch (button)
+  {
+    case BUTTON_FLASH:
+      mode = TWINKLE;
+    break;
+    case BUTTON_JUMP_THREE:
+      mode = JUMP;
+    break;
+    case BUTTON_JUMP_SEVEN:
+      mode = JUMP;
+    break;
+    case BUTTON_FADE_THREE:
+      mode = FADE;
+    break;
+    case BUTTON_FADE_SEVEN:
+      mode = FADE;
+    break;
+  }
+}
+
 const uint8_t MAX_SPEED = 12;
 uint8_t speed = MAX_SPEED / 2;
 bool paused = false;
@@ -102,7 +125,7 @@ void buttonPalette(const uint32_t button)
       // ??
     break;
     case BUTTON_DIY_SIX:
-      edit = !edit;
+      editMode = !editMode;
     break;
     default:
       currentPalette = RainbowColors_p;
@@ -196,6 +219,16 @@ void handleIR(const uint32_t value)
       if (speed > 0)
         --speed;
     break;
+    case BUTTON_AUTO:
+      autoMode = !autoMode;
+    break;
+    case BUTTON_FLASH:
+    case BUTTON_JUMP_THREE:
+    case BUTTON_JUMP_SEVEN:
+    case BUTTON_FADE_THREE:
+    case BUTTON_FADE_SEVEN:
+      buttonMode(value);
+    break;
     case BUTTON_HOLD:
     break;
     default:
@@ -208,7 +241,18 @@ void fillLEDs(uint8_t colorIndex)
 {
   for (int i = 0; i < NUM_LEDS; ++i)
   {
-    leds[i] = ColorFromPalette(currentPalette, colorIndex, 255, currentBlending);
+    const uint8_t brightness =
+      mode == FADE ?
+        cubicwave8(millis() / 250 + i)
+      :
+      mode == JUMP ?
+        (millis() / 250) % 2
+      :
+      mode == TWINKLE ?
+        cubicwave8(millis() / 250 + i) + cubicwave8(millis() / 785 - i)
+      :
+        255;
+    leds[i] = ColorFromPalette(currentPalette, colorIndex, brightness, currentBlending);
     colorIndex += 3;
   }
 }
