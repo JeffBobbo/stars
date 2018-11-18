@@ -21,10 +21,15 @@ const int RECV_PIN = 7;
 IRrecv irrecv(RECV_PIN);
 decode_results results;
 
+bool edit = false;
+
 enum Mode {
   SOLID = 0,
-  PALETTE
+  FADE,
+  JUMP,
+  TWINKLE
 };
+bool usePalette = false;
 
 uint32_t buttonColour(const uint32_t button)
 {
@@ -85,7 +90,20 @@ void buttonPalette(const uint32_t button)
       currentPalette = pinkPurpleWhite_p;
     break;
     case BUTTON_DIY_TWO:
+      currentPalette = CloudColors_p;
+      //currentPalette = OceanColors_p;
+    break;
+    case BUTTON_DIY_THREE:
       currentPalette = PartyColors_p;
+    case BUTTON_DIY_FOUR:
+      currentPalette = offwhite_p;
+    break;
+    case BUTTON_DIY_FIVE:
+      // ??
+    break;
+    case BUTTON_DIY_SIX:
+      edit = !edit;
+    break;
     default:
       currentPalette = RainbowColors_p;
     break;
@@ -121,7 +139,7 @@ void handleIR(const uint32_t value)
       paused = !paused;
     break;
     case BUTTON_POWER:
-      mode = SOLID;
+      usePalette = false;
       fill_solid(leds, NUM_LEDS, CRGB::Black);
     break;
     case BUTTON_RED:
@@ -140,7 +158,7 @@ void handleIR(const uint32_t value)
     case BUTTON_YELLOW:
     case BUTTON_DARK_GREEN:
     case BUTTON_PINK:
-      mode = SOLID;
+      usePalette = false;
       fill_solid(leds, NUM_LEDS, buttonColour(value));
     break;
     case BUTTON_RED_UP:
@@ -166,8 +184,8 @@ void handleIR(const uint32_t value)
     case BUTTON_DIY_THREE:
     case BUTTON_DIY_FOUR:
     case BUTTON_DIY_FIVE:
-    case BUTTON_DIY_SIX:
-      mode = PALETTE;
+    // case BUTTON_DIY_SIX:
+      usePalette = true;
       buttonPalette(value);
     break;
     case BUTTON_QUICK:
@@ -246,7 +264,7 @@ void loop()
   Serial.print(now.second(), DEC);
   Serial.println();
 
-  if (mode == PALETTE)
+  if (usePalette)
   {
     static uint8_t startIndex = 0;
     if (paused == false)
