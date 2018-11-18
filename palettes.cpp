@@ -25,3 +25,26 @@ const TProgmemPalette16 pinkPurpleWhite_p PROGMEM =
   CRGB::Purple,
   CRGB::White
 };
+
+const TProgmemPalette16 offwhite_p PROGMEM =
+{
+  0xFFFFFF,
+  0xFFFFAF,
+  0x7F7F7F,
+  0xAFAFFF,
+
+  0xFFFFFF,
+  0xFFFFAF,
+  0x7F7F7F,
+  0xAFAFFF,
+
+  0xFFFFFF,
+  0xFFFFAF,
+  0x7F7F7F,
+  0xAFAFFF,
+
+  0xFFFFFF,
+  0xFFFFAF,
+  0x7F7F7F,
+  0xAFAFFF
+};
