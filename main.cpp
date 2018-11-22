@@ -10,7 +10,7 @@
 #include "palettes.h"
 
 const int LED_PIN = 5;
-#define NUM_LEDS 3
+#define NUM_LEDS 16
 #define LED_TYPE WS2812
 #define COLOR_ORDER GRB
 CRGB leds[NUM_LEDS];
@@ -100,7 +100,7 @@ void buttonMode(const uint32_t button)
   }
 }
 
-const uint8_t MAX_SPEED = 12;
+const uint8_t MAX_SPEED = 6;
 uint8_t speed = MAX_SPEED / 2;
 bool paused = false;
 uint8_t brightness = 127;
@@ -118,6 +118,7 @@ void buttonPalette(const uint32_t button)
     break;
     case BUTTON_DIY_THREE:
       currentPalette = PartyColors_p;
+    break;
     case BUTTON_DIY_FOUR:
       currentPalette = offwhite_p;
     break;
