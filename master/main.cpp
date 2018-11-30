@@ -1,25 +1,23 @@
 #include <Arduino.h>
 
 #include <FastLED.h>
-#include <IRremote.h>
 #include <Wire.h>
 
 #include "RTClib.h"
 
+//#include "../common.h"
+const uint8_t SLAVE_ADDRESS = 9;
+
 #include "controller_mapping.h"
 #include "palettes.h"
 
-const int LED_PIN = 5;
+const int LED_PIN = 6;
 #define NUM_LEDS 16
 #define LED_TYPE WS2812
 #define COLOR_ORDER GRB
 CRGB leds[NUM_LEDS];
 
 const int UPDATES_PER_SECOND = 100;
-
-const int RECV_PIN = 7;
-IRrecv irrecv(RECV_PIN);
-decode_results results;
 
 enum Mode {
   SOLID = 0,
@@ -233,7 +231,6 @@ void handleIR(const uint32_t value)
     case BUTTON_HOLD:
     break;
     default:
-      Serial.println(results.value, HEX);
      break;
   }
 }
@@ -258,6 +255,21 @@ void fillLEDs(uint8_t colorIndex)
   }
 }
 
+uint32_t getIRCode()
+{
+  Wire.requestFrom(SLAVE_ADDRESS, 4);
+
+  union {
+    uint8_t a[4];
+    uint32_t i;
+  } buf;
+  buf.i = 0;
+  for (size_t i = 0; i < 4 && Wire.available(); ++i)
+    buf.a[i] = Wire.read();
+
+  return buf.i;
+}
+
 void setup()
 {
   delay(3000); // power up safety, apparently
@@ -272,42 +284,36 @@ void setup()
     RTC.adjust(DateTime(__DATE__, __TIME__));
   }
 
-  irrecv.enableIRIn();
-  irrecv.blink13(true);
-
   FastLED.addLeds<LED_TYPE, LED_PIN, COLOR_ORDER>(leds, NUM_LEDS).setCorrection( TypicalLEDStrip );
   FastLED.setBrightness(brightness);
 
   currentPalette = RainbowColors_p;
 }
 
-int last = 0;
+int last = -1;
 void loop()
 {
   DateTime now = RTC.now();
 
-  if (irrecv.decode(&results))
-  {
-    handleIR(results.value);
-    irrecv.resume();
-  }
+  handleIR(getIRCode());
 
   const int s = now.second();
-  if (s == last)
-    return;
-  last = s;
-  Serial.print(now.month(), DEC);
-  Serial.print('/');
-  Serial.print(now.day(), DEC);
-  Serial.print('/');
-  Serial.print(now.year(), DEC);
-  Serial.print(' ');
-  Serial.print(now.hour(), DEC);
-  Serial.print(':');
-  Serial.print(now.minute(), DEC);
-  Serial.print(':');
-  Serial.print(now.second(), DEC);
-  Serial.println();
+  if (s != last)
+  {
+    last = s;
+    Serial.print(now.month(), DEC);
+    Serial.print('/');
+    Serial.print(now.day(), DEC);
+    Serial.print('/');
+    Serial.print(now.year(), DEC);
+    Serial.print(' ');
+    Serial.print(now.hour(), DEC);
+    Serial.print(':');
+    Serial.print(now.minute(), DEC);
+    Serial.print(':');
+    Serial.print(now.second(), DEC);
+    Serial.println();
+  }
 
   if (usePalette)
   {
@@ -319,7 +325,7 @@ void loop()
   }
 
   FastLED.show();
-  FastLED.delay(1000 / UPDATES_PER_SECOND);
+  FastLED.delay(100);
 }
 
 // Additionl notes on FastLED compact palettes:
