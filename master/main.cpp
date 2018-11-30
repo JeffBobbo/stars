@@ -111,8 +111,7 @@ void buttonPalette(const uint32_t button)
       currentPalette = pinkPurpleWhite_p;
     break;
     case BUTTON_DIY_TWO:
-      currentPalette = CloudColors_p;
-      //currentPalette = OceanColors_p;
+      currentPalette = OceanColors_p;
     break;
     case BUTTON_DIY_THREE:
       currentPalette = PartyColors_p;
