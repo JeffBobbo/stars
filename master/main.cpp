@@ -121,7 +121,7 @@ void buttonPalette(const uint32_t button)
       currentPalette = offwhite_p;
     break;
     case BUTTON_DIY_FIVE:
-      // ??
+      currentPalette = pinkBlue_p;
     break;
     case BUTTON_DIY_SIX:
       editMode = !editMode;

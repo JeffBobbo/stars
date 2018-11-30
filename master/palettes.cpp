@@ -48,3 +48,23 @@ const TProgmemPalette16 offwhite_p PROGMEM =
   0x7F7F7F,
   0xAFAFFF
 };
+
+const TProgmemPalette16 pinkBlue_p PROGMEM =
+{
+  CRGB::Purple,
+  CRGB::Blue,
+  CRGB::Purple,
+  CRGB::Blue,
+  CRGB::Purple,
+  CRGB::Blue,
+  CRGB::Purple,
+  CRGB::Blue,
+  CRGB::Purple,
+  CRGB::Blue,
+  CRGB::Purple,
+  CRGB::Blue,
+  CRGB::Purple,
+  CRGB::Blue,
+  CRGB::Purple,
+  CRGB::Blue
+};
