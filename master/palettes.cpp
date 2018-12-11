@@ -68,3 +68,18 @@ const TProgmemPalette16 pinkBlue_p PROGMEM =
   CRGB::Purple,
   CRGB::Blue
 };
+
+const CRGBPalette16 availablePalettes[] PROGMEM = {
+  pinkPurpleWhite_p,
+  offwhite_p,
+  pinkBlue_p,
+
+  CloudColors_p,
+  LavaColors_p,
+  OceanColors_p,
+  ForestColors_p,
+  RainbowColors_p,
+  RainbowStripeColors_p,
+  PartyColors_p,
+  HeatColors_p
+};
