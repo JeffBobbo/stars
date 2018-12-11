@@ -2,33 +2,18 @@
 
 #include <FastLED.h>
 #include <Wire.h>
+#include <EEPROM.h>
 
 #include "RTClib.h"
 
 //#include "../common.h"
 const uint8_t SLAVE_ADDRESS = 9;
+const size_t DATA_SIZE = sizeof(uint32_t);
 
+#include "global.h"
 #include "controller_mapping.h"
 #include "palettes.h"
-
-const int LED_PIN = 6;
-#define NUM_LEDS 16
-#define LED_TYPE WS2812
-#define COLOR_ORDER GRB
-CRGB leds[NUM_LEDS];
-
-const int UPDATES_PER_SECOND = 100;
-
-enum Mode {
-  SOLID = 0,
-  FADE,
-  JUMP,
-  TWINKLE
-};
-
-bool editMode = false;
-bool usePalette = false;
-bool autoMode = false;
+#include "edit.h"
 
 uint32_t buttonColour(const uint32_t button)
 {
@@ -46,16 +31,16 @@ uint32_t buttonColour(const uint32_t button)
     case BUTTON_DARK_ORANGE:
       return CRGB::OrangeRed;
     case BUTTON_LIME:
-      return CRGB::LimeGreen;
+      return CRGB::ForestGreen;
     case BUTTON_LIGHT_BLUE:
-      return CRGB::DeepSkyBlue;
+      return CRGB::DodgerBlue;
 
     case BUTTON_ORANGE:
-      return CRGB::OrangeRed;
+      return CRGB::DarkOrange;
     case BUTTON_TURQUIOSE:
-      return CRGB::Turquoise;
+      return CRGB::DarkTurquoise;
     case BUTTON_MAUVE:
-      return CRGB::Maroon;
+      return CRGB::Sienna;
 
     case BUTTON_LIGHT_ORANGE:
       return CRGB::Orange;
@@ -69,13 +54,12 @@ uint32_t buttonColour(const uint32_t button)
     case BUTTON_DARK_GREEN:
       return CRGB::DarkGreen;
     case BUTTON_PINK:
-      return CRGB::Pink;
+      return CRGB::DeepPink;
     default:
       return CRGB::Black;
   }
 }
 
-Mode mode;
 void buttonMode(const uint32_t button)
 {
   switch (button)
@@ -84,58 +68,39 @@ void buttonMode(const uint32_t button)
       mode = TWINKLE;
     break;
     case BUTTON_JUMP_THREE:
-      mode = JUMP;
-    break;
     case BUTTON_JUMP_SEVEN:
       mode = JUMP;
     break;
     case BUTTON_FADE_THREE:
-      mode = FADE;
-    break;
     case BUTTON_FADE_SEVEN:
       mode = FADE;
     break;
   }
 }
 
-const uint8_t MAX_SPEED = 6;
-uint8_t speed = MAX_SPEED / 2;
-bool paused = false;
-uint8_t brightness = 127;
-
 void buttonPalette(const uint32_t button)
 {
   switch (button)
   {
     case BUTTON_DIY_ONE:
-      currentPalette = pinkPurpleWhite_p;
-    break;
     case BUTTON_DIY_TWO:
-      currentPalette = OceanColors_p;
-    break;
     case BUTTON_DIY_THREE:
-      currentPalette = PartyColors_p;
-    break;
     case BUTTON_DIY_FOUR:
-      currentPalette = offwhite_p;
-    break;
     case BUTTON_DIY_FIVE:
-      currentPalette = pinkBlue_p;
-    break;
-    case BUTTON_DIY_SIX:
-      editMode = !editMode;
+      currentPalette = availablePalettes[mappedPalette[diy(button)]];
     break;
     default:
-      currentPalette = RainbowColors_p;
+      usePalette = false;
+      fill_solid(leds, NUM_LEDS, CRGB::Black);
     break;
   }
 }
 
-
-extern CRGBPalette16 myRedWhiteBluePalette;
-extern const TProgmemPalette16 myRedWhiteBluePalette_p PROGMEM;
-
-RTC_DS1307 RTC;
+void handleDIY(const uint32_t button)
+{
+  usePalette = true;
+  buttonPalette(button);
+}
 
 void handleIR(const uint32_t value)
 {
@@ -143,25 +108,31 @@ void handleIR(const uint32_t value)
   if ((value & 0xFFFF0000) != 0x00FF0000)
     return;
 
-  DateTime now = RTC.now();
+  if (editMode)
+  {
+    editIR(value);
+    return;
+  }
+
   switch (value)
   {
     case BUTTON_BRIGHTNESS_INC:
-      if (brightness < 255)
-        brightness = (brightness << 2) | 3;
+      if (brightness < MAX_BRIGHTNESS)
+        brightness += INC_BRIGHTNESS;
       FastLED.setBrightness(brightness);
     break;
     case BUTTON_BRIGHTNESS_DEC:
-      if (brightness > 0)
-        brightness >>= 2;
+      if (brightness > MIN_BRIGHTNESS)
+        brightness -= INC_BRIGHTNESS;
       FastLED.setBrightness(brightness);
     break;
     case BUTTON_PLAYPAUSE:
       paused = !paused;
     break;
     case BUTTON_POWER:
-      usePalette = false;
-      fill_solid(leds, NUM_LEDS, CRGB::Black);
+      powerOn = !powerOn;
+      if (powerOn && !usePalette)
+        fill_solid(leds, NUM_LEDS, colour);
     break;
     case BUTTON_RED:
     case BUTTON_GREEN:
@@ -180,41 +151,24 @@ void handleIR(const uint32_t value)
     case BUTTON_DARK_GREEN:
     case BUTTON_PINK:
       usePalette = false;
-      fill_solid(leds, NUM_LEDS, buttonColour(value));
-    break;
-    case BUTTON_RED_UP:
-      RTC.adjust(DateTime(now.year(), now.month(), now.day(), now.hour()+1, now.minute(), now.second()));
-    break;
-    case BUTTON_RED_DOWN:
-      RTC.adjust(DateTime(now.year(), now.month(), now.day(), now.hour()-1, now.minute(), now.second()));
-    break;
-    case BUTTON_GREEN_UP:
-      RTC.adjust(DateTime(now.year(), now.month(), now.day(), now.hour(), now.minute()+1, now.second()));
-    break;
-    case BUTTON_GREEN_DOWN:
-      RTC.adjust(DateTime(now.year(), now.month(), now.day(), now.hour(), now.minute()-1, now.second()));
-    break;
-    case BUTTON_BLUE_UP:
-      RTC.adjust(DateTime(now.year(), now.month(), now.day(), now.hour(), now.minute(), now.second()+1));
-    break;
-    case BUTTON_BLUE_DOWN:
-      RTC.adjust(DateTime(now.year(), now.month(), now.day(), now.hour(), now.minute(), now.second()-1));
+      fill_solid(leds, NUM_LEDS, colour = buttonColour(value));
     break;
     case BUTTON_DIY_ONE:
     case BUTTON_DIY_TWO:
     case BUTTON_DIY_THREE:
     case BUTTON_DIY_FOUR:
     case BUTTON_DIY_FIVE:
-    // case BUTTON_DIY_SIX:
-      usePalette = true;
-      buttonPalette(value);
+      handleDIY(value);
+    break;
+    case BUTTON_DIY_SIX:
+      editMode = !editMode;
     break;
     case BUTTON_QUICK:
       if (speed < MAX_SPEED)
         ++speed;
     break;
     case BUTTON_SLOW:
-      if (speed > 0)
+      if (speed > MIN_SPEED)
         --speed;
     break;
     case BUTTON_AUTO:
@@ -234,43 +188,124 @@ void handleIR(const uint32_t value)
   }
 }
 
-void fillLEDs(uint8_t colorIndex)
+uint8_t modeBrightness(const int i)
 {
+  switch (mode)
+  {
+    case FADE:
+      return cubicwave8((millis()/25+i*25) % 255);
+    case JUMP:
+      return (((millis() / 250) + i) % 2) * 255;
+    default:
+      return 255;
+  }
+}
+
+void twinklePalette(uint8_t colorIndex)
+{
+  static uint8_t twinkle[NUM_LEDS] = {255};
+
   for (int i = 0; i < NUM_LEDS; ++i)
   {
-    const uint8_t brightness =
-      mode == FADE ?
-        cubicwave8(millis() / 250 + i)
-      :
-      mode == JUMP ?
-        (millis() / 250) % 2
-      :
-      mode == TWINKLE ?
-        cubicwave8(millis() / 250 + i) + cubicwave8(millis() / 785 - i)
-      :
-        255;
-    leds[i] = ColorFromPalette(currentPalette, colorIndex, brightness, currentBlending);
+    leds[i] = ColorFromPalette(currentPalette, colorIndex, 255, twinkle[i]);
+    twinkle[i] -= 8;
     colorIndex += 3;
+  }
+
+  if (random(2) == 0)
+    twinkle[random(NUM_LEDS)] = 255;
+}
+
+void paletteLEDs(uint8_t colorIndex)
+{
+  if (mode == TWINKLE)
+  {
+    twinklePalette(colorIndex);
+    return;
+  }
+    
+  for (int i = 0; i < NUM_LEDS; ++i)
+  {
+    leds[i] = ColorFromPalette(currentPalette, colorIndex, modeBrightness(i), currentBlending);
+    colorIndex += 3;
+  }
+}
+
+void solidLEDs()
+{
+  if (mode == TWINKLE)
+  {
+    // fade all
+    for (int i = 0; i < NUM_LEDS; ++i)
+      leds[i].fadeToBlackBy(8);
+
+    // brighten some
+    if (random(2) == 0)
+    {
+      for (int i = 0; i < 1; ++i)
+        leds[random(NUM_LEDS)] = colour;
+    }
+    return;
+  }
+
+  for (int i = 0; i < NUM_LEDS; ++i)
+  {
+    leds[i] = colour;
+    leds[i] %= modeBrightness(i);
   }
 }
 
 uint32_t getIRCode()
 {
-  Wire.requestFrom(SLAVE_ADDRESS, 4);
+  Wire.requestFrom(SLAVE_ADDRESS, DATA_SIZE);
 
   union {
-    uint8_t a[4];
+    uint8_t a[DATA_SIZE];
     uint32_t i;
   } buf;
   buf.i = 0;
-  for (size_t i = 0; i < 4 && Wire.available(); ++i)
+  for (size_t i = 0; i < DATA_SIZE && Wire.available(); ++i)
     buf.a[i] = Wire.read();
 
   return buf.i;
 }
 
+bool lightsOn()
+{
+  if (autoMode)
+  {
+    DateTime now = RTC.now();
+
+    const uint32_t on = 22 * 3600;
+    const uint32_t off = 23 * 3600 + 1800;
+
+    const uint32_t time = now.hour() * 3600 + now.minute() * 30 + now.second();
+    if (time > on && time < off)
+    {
+      if (powerOn)
+        powerOn = false;
+      return true;
+    }
+  }
+
+  return powerOn;
+}
+
+void indicators()
+{
+  const bool on = lightsOn();
+
+  digitalWrite(INDICATOR_R, !powerOn);
+  digitalWrite(INDICATOR_G, autoMode);
+  //digitalWrite(INDICATOR_B, HIGH);
+}
+
 void setup()
 {
+  digitalWrite(INDICATOR_R, HIGH);
+  digitalWrite(INDICATOR_G, HIGH);
+  //digitalWrite(INDICATOR_B, LOW);
+
   delay(3000); // power up safety, apparently
 
   Serial.begin(9600);
@@ -283,19 +318,46 @@ void setup()
     RTC.adjust(DateTime(__DATE__, __TIME__));
   }
 
-  FastLED.addLeds<LED_TYPE, LED_PIN, COLOR_ORDER>(leds, NUM_LEDS).setCorrection( TypicalLEDStrip );
-  FastLED.setBrightness(brightness);
+  #ifdef USE_EEPROM_STORAGE
+    uint32_t checksum;
+    EEPROM.get(ADDRESS_CHECKSUM, checksum);
+    if (checksum != EEPROM_crc()) // data corrupted, restore defaults
+    {
+      Serial.prinln("Restoring EEPROM from defaults");
+      EEPROM.put(ADDRESS_BRIGHTNESS, brightness);
+      EEPROM.put(ADDRESS_SPEED, speed);
 
-  currentPalette = RainbowColors_p;
+      for (size_t i = 0; i < 5; ++i)
+        EEPROM.put(ADDRESS_PALETTE + i, mappedPalette[i]);
+
+      // update the checksum for next time
+      checksum = EEPROM_crc();
+      EEPROM.put(ADDRESS_CHECKSUM, checksum);
+    }
+    else // data intact, load into memory
+    {
+      Serial.prinln("Loading data from EEPROM");
+
+      EEPROM.get(ADDRESS_BRIGHTNESS, brightness);
+      EEPROM.get(ADDRESS_SPEED, speed);
+
+      for (size_t i = 0; i < 5; ++i)
+        EEPROM.get(ADDRESS_PALETTE + i, mappedPalette[i]);
+    }
+  #endif
+
+  FastLED.addLeds<LED_TYPE, LED_PIN, COLOR_ORDER>(leds, NUM_LEDS).setCorrection(TypicalLEDStrip);
+  FastLED.setBrightness(brightness);
+  fill_solid(leds, NUM_LEDS, CRGB::White);
 }
 
 int last = -1;
 void loop()
 {
-  DateTime now = RTC.now();
 
   handleIR(getIRCode());
 
+  DateTime now = RTC.now();
   const int s = now.second();
   if (s != last)
   {
@@ -314,37 +376,24 @@ void loop()
     Serial.println();
   }
 
+  indicators();
+
   if (usePalette)
   {
     static uint8_t startIndex = 0;
     if (paused == false)
       startIndex = startIndex + speed; /* motion speed */
 
-    fillLEDs(startIndex);
+    paletteLEDs(startIndex);
+  }
+  else
+  {
+    solidLEDs();
   }
 
-  FastLED.show();
-  FastLED.delay(100);
+  if (lightsOn())
+    FastLED.show();
+  else
+    FastLED.clear();
+  FastLED.delay(1000 / UPDATES_PER_SECOND);
 }
-
-// Additionl notes on FastLED compact palettes:
-//
-// Normally, in computer graphics, the palette (or "color lookup table")
-// has 256 entries, each containing a specific 24-bit RGB color.  You can then
-// index into the color palette using a simple 8-bit (one byte) value.
-// A 256-entry color palette takes up 768 bytes of RAM, which on Arduino
-// is quite possibly "too many" bytes.
-//
-// FastLED does offer traditional 256-element palettes, for setups that
-// can afford the 768-byte cost in RAM.
-//
-// However, FastLED also offers a compact alternative.  FastLED offers
-// palettes that store 16 distinct entries, but can be accessed AS IF
-// they actually have 256 entries; this is accomplished by interpolating
-// between the 16 explicit entries to create fifteen intermediate palette
-// entries between each pair.
-//
-// So for example, if you set the first two explicit entries of a compact
-// palette to Green (0,255,0) and Blue (0,0,255), and then retrieved
-// the first sixteen entries from the virtual palette (of 256), you'd get
-// Green, followed by a smooth gradient from green-to-blue, and then Blue.
