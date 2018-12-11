@@ -14,7 +14,7 @@ enum Button
   BUTTON_BLUE = 0xFFA25D,
   BUTTON_WHITE = 0xFF22DD,
 
-  BUTTON_DARK_ORANGE = 0x2AD5,
+  BUTTON_DARK_ORANGE = 0xFF2AD5,
   BUTTON_LIME = 0xFFAA55,
   BUTTON_LIGHT_BLUE = 0xFF926D,
   BUTTON_PINK_A = 0xFF12ED,
@@ -59,5 +59,26 @@ enum Button
 
   BUTTON_HOLD = 0xFFFFFFFF
 };
+
+static uint8_t diy(const uint32_t id)
+{
+  switch (id)
+  {
+    case BUTTON_DIY_ONE:
+      return 0;
+    case BUTTON_DIY_TWO:
+      return 1;
+    case BUTTON_DIY_THREE:
+      return 2;
+    case BUTTON_DIY_FOUR:
+      return 3;
+    case BUTTON_DIY_FIVE:
+      return 4;
+    case BUTTON_DIY_SIX:
+      return 5;
+    default:
+      return 6;
+  }
+}
 
 #endif
