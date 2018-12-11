@@ -1,3 +1,5 @@
+#ifndef RTC_H_INCLUDE
+#define RTC_H_INCLUDE
 // Code by JeeLabs http://news.jeelabs.org/code/
 // Released to the public domain! Enjoy!
 
@@ -45,3 +47,5 @@ public:
 protected:
     static long offset;
 };
+
+#endif
