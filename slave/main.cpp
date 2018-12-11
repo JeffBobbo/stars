@@ -11,16 +11,18 @@ decode_results results;
 uint32_t current = 0;
 
 const uint8_t NO_DATA[] = {0xFF, 0xFF, 0xFF, 0xFF};
+const size_t DATA_SIZE = sizeof(uint32_t);
+
 void requestEvent()
 {
   if (current)
   {
-    Wire.write(reinterpret_cast<byte*>(&current), 4);
-    current = 0;    
+    Wire.write(reinterpret_cast<byte*>(&current), DATA_SIZE);
+    current = 0;
   }
   else
   {
-    Wire.write(NO_DATA, 4);
+    Wire.write(NO_DATA, DATA_SIZE);
   }
 }
 
