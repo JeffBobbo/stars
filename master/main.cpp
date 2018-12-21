@@ -6,6 +6,11 @@
 
 #include "RTClib.h"
 
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
+
+Adafruit_SSD1306 display(128, 64);
+
 //#include "../common.h"
 const uint8_t SLAVE_ADDRESS = 9;
 const size_t DATA_SIZE = sizeof(uint32_t);
@@ -68,12 +73,14 @@ void buttonMode(const uint32_t button)
       mode = TWINKLE;
     break;
     case BUTTON_JUMP_THREE:
+      mode = JUMP_THREE;
     case BUTTON_JUMP_SEVEN:
-      mode = JUMP;
+      mode = JUMP_SEVEN;
     break;
     case BUTTON_FADE_THREE:
+      mode = FADE_THREE;
     case BUTTON_FADE_SEVEN:
-      mode = FADE;
+      mode = FADE_SEVEN;
     break;
   }
 }
@@ -192,9 +199,11 @@ uint8_t modeBrightness(const int i)
 {
   switch (mode)
   {
-    case FADE:
+    case FADE_THREE:
+    case FADE_SEVEN:
       return cubicwave8((millis()/25+i*25) % 255);
-    case JUMP:
+    case JUMP_THREE:
+    case JUMP_SEVEN:
       return (((millis() / 250) + i) % 2) * 255;
     default:
       return 255;
@@ -291,32 +300,123 @@ bool lightsOn()
   return powerOn;
 }
 
+/*
 void indicators()
 {
   const bool on = lightsOn();
 
   digitalWrite(INDICATOR_R, !powerOn);
   digitalWrite(INDICATOR_G, autoMode);
-  //digitalWrite(INDICATOR_B, HIGH);
+}
+*/
+
+void serial()
+{
+  static int last = -1;
+  DateTime now = RTC.now();
+  const int s = now.second();
+
+  if (s == last)
+    return;
+
+  // write out useful information
+  last = s;
+  // datetime
+  Serial.print(now.year(), DEC);
+  Serial.print('-');
+  Serial.print(now.month(), DEC);
+  Serial.print('-');
+  Serial.print(now.day(), DEC);
+  Serial.print(' ');
+  Serial.print(now.hour(), DEC);
+  Serial.print(':');
+  Serial.print(now.minute(), DEC);
+  Serial.print(':');
+  Serial.print(now.second(), DEC);
+  
+  // mode
+  Serial.print(' ');
+  if (editMode)
+    Serial.print(F("EDIT"));
+  else if (mode == SOLID)
+    Serial.print(F("SOLID"));
+  else if (mode == FADE_THREE)
+    Serial.print(F("FADE_THREE"));
+  else if (mode == FADE_SEVEN)
+    Serial.print(F("FADE_SEVEN"));
+  else if (mode == JUMP_THREE)
+    Serial.print(F("JUMP_THREE"));
+  else if (mode == JUMP_SEVEN)
+    Serial.print(F("JUMP_SEVEN"));
+  else
+    Serial.print(F("TWINKLE"));
+
+  // display
+  Serial.print(' ');
+  if (usePalette)
+    Serial.print(F("Using palette"));
+  else
+    Serial.print(F("Static colour"));
+
+  Serial.println();
+}
+
+void screen()
+{
+  display.clearDisplay();
+
+  const DateTime now = RTC.now();
+
+  display.setFont(nullptr);
+
+  display.setTextSize(4);
+  String timestamp(now.hour());
+  timestamp += now.second() % 2 ? ":" : " ";
+  timestamp += now.minute();
+  int16_t x1, y1;
+  uint16_t x2, y2;
+  display.getTextBounds(timestamp.c_str(), 0, 0, &x1, &y1, &x2, &y2);
+  display.setCursor((128 - x2) / 2, (48 - y2) / 2 + 16);
+  display.print(timestamp.c_str());
+
+
+  display.display();
 }
 
 void setup()
 {
-  digitalWrite(INDICATOR_R, HIGH);
-  digitalWrite(INDICATOR_G, HIGH);
-  //digitalWrite(INDICATOR_B, LOW);
+  //digitalWrite(INDICATOR_R, HIGH);
+  //digitalWrite(INDICATOR_G, HIGH);
 
   delay(3000); // power up safety, apparently
 
   Serial.begin(9600);
+
+  Serial.println("Starting");
+
+  // start I2C
   Wire.begin();
+
+  // start display
+  if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C))
+  {
+    while (1)
+      Serial.println(F("Failed to begin display"));
+  }
+  display.clearDisplay();
+  display.setTextColor(WHITE); // only options are white and black
+  display.setTextWrap(false); // don't wrap text
+  display.dim(1); // dim the display
+
+  // start RTC
   RTC.begin();
   // Check to see if the RTC is keeping time.  If it is, load the time from your computer.
   if (!RTC.isrunning())
   {
-    Serial.println("RTC is NOT running!");
+    Serial.println(F("RTC is NOT running!"));
     RTC.adjust(DateTime(__DATE__, __TIME__));
   }
+
 
   #ifdef USE_EEPROM_STORAGE
     uint32_t checksum;
@@ -351,38 +451,13 @@ void setup()
   fill_solid(leds, NUM_LEDS, CRGB::White);
 }
 
-int last = -1;
-void loop()
+void updateLEDs()
 {
-
-  handleIR(getIRCode());
-
-  DateTime now = RTC.now();
-  const int s = now.second();
-  if (s != last)
-  {
-    last = s;
-    Serial.print(now.month(), DEC);
-    Serial.print('/');
-    Serial.print(now.day(), DEC);
-    Serial.print('/');
-    Serial.print(now.year(), DEC);
-    Serial.print(' ');
-    Serial.print(now.hour(), DEC);
-    Serial.print(':');
-    Serial.print(now.minute(), DEC);
-    Serial.print(':');
-    Serial.print(now.second(), DEC);
-    Serial.println();
-  }
-
-  indicators();
-
   if (usePalette)
   {
     static uint8_t startIndex = 0;
     if (paused == false)
-      startIndex = startIndex + speed; /* motion speed */
+      startIndex = startIndex + speed;
 
     paletteLEDs(startIndex);
   }
@@ -396,4 +471,15 @@ void loop()
   else
     FastLED.clear();
   FastLED.delay(1000 / UPDATES_PER_SECOND);
+}
+
+void loop()
+{
+  handleIR(getIRCode());
+
+  //indicators();
+  //serial();
+  screen();
+
+  updateLEDs();
 }

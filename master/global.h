@@ -6,21 +6,19 @@
 
 #include "RTClib.h"
 
-extern const int UPDATES_PER_SECOND;
+extern const uint8_t UPDATES_PER_SECOND;
 #define LED_PIN 6
 #define NUM_LEDS 16
 #define LED_TYPE WS2812
 #define COLOR_ORDER GRB
 extern CRGB leds[NUM_LEDS];
 
-extern const int INDICATOR_R;
-extern const int INDICATOR_G;
-//extern const int INDICATOR_B;
-
 enum Mode {
   SOLID = 0,
-  FADE,
-  JUMP,
+  FADE_THREE,
+  FADE_SEVEN,
+  JUMP_THREE,
+  JUMP_SEVEN,
   TWINKLE
 };
 extern Mode mode;

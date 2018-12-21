@@ -2,12 +2,11 @@
 
 #include <EEPROM.h>
 
-const int UPDATES_PER_SECOND = 100;
+const uint8_t UPDATES_PER_SECOND = 100;
 CRGB leds[NUM_LEDS];
 
-const int INDICATOR_R = 2;
-const int INDICATOR_G = 3;
-//const int INDICATOR_B = 4;
+//const int INDICATOR_R = 2;
+//const int INDICATOR_G = 3;
 
 Mode mode;
 
