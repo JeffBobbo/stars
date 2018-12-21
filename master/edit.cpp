@@ -5,11 +5,12 @@
 #include "palettes.h"
 
 enum EditMode {
+  NONE,
   DIY,
+  DATE,
   TIME,
   AUTO
-};
-EditMode editmode;
+} state;
 
 void editDIY(const uint32_t button)
 {
