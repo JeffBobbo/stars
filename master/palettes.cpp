@@ -69,17 +69,28 @@ const TProgmemPalette16 pinkBlue_p PROGMEM =
   CRGB::Blue
 };
 
-const CRGBPalette16 availablePalettes[] PROGMEM = {
-  pinkPurpleWhite_p,
-  offwhite_p,
-  pinkBlue_p,
-
-  CloudColors_p,
-  LavaColors_p,
-  OceanColors_p,
-  ForestColors_p,
-  RainbowColors_p,
-  RainbowStripeColors_p,
-  PartyColors_p,
-  HeatColors_p
-};
+CRGBPalette16 getPalette(const uint8_t idx)
+{
+  CRGBPalette16 p = pinkPurpleWhite_p;
+  if (idx == 1)
+    p = offwhite_p;
+  else if (idx == 2)
+    p = pinkBlue_p;
+  else if (idx == 3)
+    p = CloudColors_p;
+  else if (idx == 4)
+    p = LavaColors_p;
+  else if (idx == 5)
+    p = OceanColors_p;
+  else if (idx == 6)
+    p = ForestColors_p;
+  else if (idx == 7)
+    p = RainbowColors_p;
+  else if (idx == 8)
+    p = RainbowStripeColors_p;
+  else if (idx == 9)
+    p = PartyColors_p;
+  else if (idx == 10)
+    p = HeatColors_p;
+  return p;
+}

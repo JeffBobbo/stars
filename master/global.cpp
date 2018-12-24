@@ -13,33 +13,37 @@ Mode mode;
 bool editMode = false;
 bool autoMode = false;
 bool powerOn = true;
+bool usePalette = false;
+bool paused = false;
 
 uint32_t colour = CRGB::White;
-bool usePalette = false;
 
 const uint8_t MAX_BRIGHTNESS = 255;
-const uint8_t MIN_BRIGHTNESS = 127;
+const uint8_t MIN_BRIGHTNESS = 31;
 const uint8_t INC_BRIGHTNESS =  32;
 uint8_t brightness = MAX_BRIGHTNESS;
 
-const uint8_t MAX_SPEED = 6;
-const uint8_t MIN_SPEED = 0;
+const uint8_t MAX_SPEED = 24;
+const uint8_t MIN_SPEED = 6;
 uint8_t speed = MAX_SPEED / 2;
-bool paused = false;
 
 uint8_t mappedPalette[5] = {0, 5, 10, 1, 2};
 
 RTC_DS1307 RTC;
 
+AutoHandler autoHandler;
+
 // data storage stuff
-const size_t ADDRESS_CHECKSUM = 0; 
-const size_t ADDRESS_BRIGHTNESS = 4;
-const size_t ADDRESS_SPEED  = 5;
-const size_t ADDRESS_PALETTE = 6;
-const size_t ADDRESS_FLAGS = 11;
+const uint16_t ADDRESS_CHECKSUM = 0; 
+const uint16_t ADDRESS_BRIGHTNESS = 4;
+const uint16_t ADDRESS_SPEED  = 5;
+const uint16_t ADDRESS_PALETTE = 6;
+const uint16_t ADDRESS_FLAGS = 11;
 
 const uint8_t BIT_PAUSED = 0x01;
 const uint8_t BIT_AUTO = 0x02;
+
+const uint32_t WEEK = 7 * 86400UL;
 
 uint32_t EEPROM_crc()
 {
@@ -60,4 +64,29 @@ uint32_t EEPROM_crc()
   }
 
   return crc;
+}
+
+
+const char SUNDAY[] PROGMEM = "Sun";
+const char MONDAY[] PROGMEM = "Mon";
+const char TUESDAY[] PROGMEM = "Tue";
+const char WEDNESDAY[] PROGMEM = "Wed";
+const char THURSDAY[] PROGMEM = "Thur";
+const char FRIDAY[] PROGMEM = "Fri";
+const char SATURDAY[] PROGMEM = "Sat";
+const char* const DAY_TABLE[] PROGMEM = {
+  SUNDAY,
+  MONDAY,
+  TUESDAY,
+  WEDNESDAY,
+  THURSDAY,
+  FRIDAY,
+  SATURDAY
+};
+
+const char* dayName(const uint8_t idx)
+{
+  static char buff[5];
+  strcpy_P(buff, (char*)pgm_read_word(&(DAY_TABLE[idx])));
+  return buff;
 }

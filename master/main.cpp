@@ -2,7 +2,10 @@
 
 #include <FastLED.h>
 #include <Wire.h>
+
+#ifdef USE_EEPROM_STORAGE
 #include <EEPROM.h>
+#endif
 
 #include "RTClib.h"
 
@@ -19,6 +22,9 @@ const size_t DATA_SIZE = sizeof(uint32_t);
 #include "controller_mapping.h"
 #include "palettes.h"
 #include "edit.h"
+
+// overrides auto mode
+bool autoPowerOff = false;
 
 uint32_t buttonColour(const uint32_t button)
 {
@@ -94,7 +100,7 @@ void buttonPalette(const uint32_t button)
     case BUTTON_DIY_THREE:
     case BUTTON_DIY_FOUR:
     case BUTTON_DIY_FIVE:
-      currentPalette = availablePalettes[mappedPalette[diy(button)]];
+      currentPalette = getPalette(mappedPalette[diy(button)]);
     break;
     default:
       usePalette = false;
@@ -107,6 +113,28 @@ void handleDIY(const uint32_t button)
 {
   usePalette = true;
   buttonPalette(button);
+}
+
+bool lightsOn()
+{
+  if (autoMode)
+  {
+    if (autoHandler.on())
+    {
+      if (autoPowerOff) // if we've turned off, stay off
+        return false;
+
+      if (powerOn)
+        powerOn = false;
+      return true;
+    }
+    else // drop override when we drop out of auto
+    {
+      autoPowerOff = false;
+    }
+  }
+
+  return powerOn;
 }
 
 void handleIR(const uint32_t value)
@@ -137,7 +165,10 @@ void handleIR(const uint32_t value)
       paused = !paused;
     break;
     case BUTTON_POWER:
-      powerOn = !powerOn;
+      if (autoMode && autoHandler.on())
+        autoPowerOff = !autoPowerOff;
+      else
+        powerOn = !powerOn;      
       if (powerOn && !usePalette)
         fill_solid(leds, NUM_LEDS, colour);
     break;
@@ -158,6 +189,7 @@ void handleIR(const uint32_t value)
     case BUTTON_DARK_GREEN:
     case BUTTON_PINK:
       usePalette = false;
+      mode = SOLID;
       fill_solid(leds, NUM_LEDS, colour = buttonColour(value));
     break;
     case BUTTON_DIY_ONE:
@@ -180,6 +212,7 @@ void handleIR(const uint32_t value)
     break;
     case BUTTON_AUTO:
       autoMode = !autoMode;
+      autoPowerOff = false;
     break;
     case BUTTON_FLASH:
     case BUTTON_JUMP_THREE:
@@ -200,11 +233,13 @@ uint8_t modeBrightness(const int i)
   switch (mode)
   {
     case FADE_THREE:
-    case FADE_SEVEN:
       return cubicwave8((millis()/25+i*25) % 255);
+    case FADE_SEVEN:
+      return cubicwave8((millis()/100+i*25) % 255);
     case JUMP_THREE:
+      return (((millis() / 300) + i) % 2) * 255;
     case JUMP_SEVEN:
-      return (((millis() / 250) + i) % 2) * 255;
+      return (((millis() / 700) + i) % 2) * 255;
     default:
       return 255;
   }
@@ -216,12 +251,12 @@ void twinklePalette(uint8_t colorIndex)
 
   for (int i = 0; i < NUM_LEDS; ++i)
   {
-    leds[i] = ColorFromPalette(currentPalette, colorIndex, 255, twinkle[i]);
-    twinkle[i] -= 8;
+    leds[i] = ColorFromPalette(currentPalette, colorIndex, twinkle[i], currentBlending);
+    twinkle[i] -= 16;
     colorIndex += 3;
   }
 
-  if (random(2) == 0)
+  if (random(3) == 0)
     twinkle[random(NUM_LEDS)] = 255;
 }
 
@@ -279,130 +314,195 @@ uint32_t getIRCode()
   return buf.i;
 }
 
-bool lightsOn()
-{
-  if (autoMode)
-  {
-    DateTime now = RTC.now();
-
-    const uint32_t on = 22 * 3600;
-    const uint32_t off = 23 * 3600 + 1800;
-
-    const uint32_t time = now.hour() * 3600 + now.minute() * 30 + now.second();
-    if (time > on && time < off)
-    {
-      if (powerOn)
-        powerOn = false;
-      return true;
-    }
-  }
-
-  return powerOn;
-}
-
-/*
-void indicators()
-{
-  const bool on = lightsOn();
-
-  digitalWrite(INDICATOR_R, !powerOn);
-  digitalWrite(INDICATOR_G, autoMode);
-}
-*/
-
-void serial()
-{
-  static int last = -1;
-  DateTime now = RTC.now();
-  const int s = now.second();
-
-  if (s == last)
-    return;
-
-  // write out useful information
-  last = s;
-  // datetime
-  Serial.print(now.year(), DEC);
-  Serial.print('-');
-  Serial.print(now.month(), DEC);
-  Serial.print('-');
-  Serial.print(now.day(), DEC);
-  Serial.print(' ');
-  Serial.print(now.hour(), DEC);
-  Serial.print(':');
-  Serial.print(now.minute(), DEC);
-  Serial.print(':');
-  Serial.print(now.second(), DEC);
-  
-  // mode
-  Serial.print(' ');
-  if (editMode)
-    Serial.print(F("EDIT"));
-  else if (mode == SOLID)
-    Serial.print(F("SOLID"));
-  else if (mode == FADE_THREE)
-    Serial.print(F("FADE_THREE"));
-  else if (mode == FADE_SEVEN)
-    Serial.print(F("FADE_SEVEN"));
-  else if (mode == JUMP_THREE)
-    Serial.print(F("JUMP_THREE"));
-  else if (mode == JUMP_SEVEN)
-    Serial.print(F("JUMP_SEVEN"));
-  else
-    Serial.print(F("TWINKLE"));
-
-  // display
-  Serial.print(' ');
-  if (usePalette)
-    Serial.print(F("Using palette"));
-  else
-    Serial.print(F("Static colour"));
-
-  Serial.println();
-}
-
 void screen()
 {
   display.clearDisplay();
 
-  const DateTime now = RTC.now();
-
-  display.setFont(nullptr);
-
-  display.setTextSize(4);
-  String timestamp(now.hour());
-  timestamp += now.second() % 2 ? ":" : " ";
-  timestamp += now.minute();
   int16_t x1, y1;
   uint16_t x2, y2;
-  display.getTextBounds(timestamp.c_str(), 0, 0, &x1, &y1, &x2, &y2);
-  display.setCursor((128 - x2) / 2, (48 - y2) / 2 + 16);
-  display.print(timestamp.c_str());
 
+  /*
+  if (!editMode)
+  {
+    display.setTextSize(2);
+    display.setCursor(0, 0);
+    if (autoMode)
+      display.print("A");
+    if (powerOn)
+      display.print("P");
+    if (autoPowerOff)
+      display.print("O");
+  }
+  */
+
+  if (!editMode || editState == TIME)
+  {
+    const DateTime now = RTC.nowDST();
+    String timestamp;
+    if (now.hour() < 10)
+      timestamp += "0";
+    timestamp += now.hour();
+    timestamp += now.second() % 2 ? ":" : " ";
+    if (now.minute() < 10)
+      timestamp += "0";
+    timestamp += now.minute();
+
+    display.setTextSize(4);
+    display.getTextBounds(timestamp.c_str(), 0, 0, &x1, &y1, &x2, &y2);
+    display.setCursor((128 - x2) / 2, (48 - y2) / 2 + 16);
+    display.print(timestamp.c_str());
+  }
+
+  if (editMode)
+  {
+    display.setTextSize(2);
+    display.setCursor(0, 0);
+    display.print(F("Edit"));
+
+    switch (editState)
+    {
+      case NONE:
+      break;
+      case PALETTE:
+        display.setTextSize(2);
+        display.getTextBounds(F("DIY"), 0, 0, &x1, &y1, &x2, &y2);
+        display.setCursor(128 - x2, 0);
+        display.print(F("DIY"));
+
+        display.setCursor(0, 16);
+        display.print(F("DIY: "));
+        if (paletteSelect != 6)
+          display.print(paletteSelect);
+        else
+          display.print("Select");
+        if (paletteSelect != 6)
+        {
+          display.setCursor(0, 32);
+          display.print(F("Palette: "));
+          display.print(mappedPalette[paletteSelect]);
+        }
+      break;
+      case AUTO:
+        display.setTextSize(2);
+        display.getTextBounds(F("Auto"), 0, 0, &x1, &y1, &x2, &y2);
+        display.setCursor(128 - x2, 0);
+        display.print(F("Auto"));
+
+        if (autoSelect < autoHandler.size())
+        {
+          display.setCursor(0, 16);
+          uint32_t onAt = autoHandler[autoSelect].onTime;
+          uint32_t offAt = autoHandler[autoSelect].offTime;
+
+          uint32_t onDay = onAt / 86400;
+          uint32_t offDay = offAt / 86400;
+          uint8_t onHour = (onAt % 86400) / 3600;
+          uint8_t offHour = (offAt % 86400) / 3600;
+          uint8_t onMinute = (onAt % 3600) / 60;
+          uint8_t offMinute = (offAt % 3600) / 60;
+
+          display.setCursor(0, 16);
+          if (autoEditOn)
+            display.print(">");
+          display.print(dayName(onDay));
+          display.setCursor(0, 32);
+          if (!autoEditOn)
+            display.print(">");
+          display.print(dayName(offDay));
+
+
+          String str;
+          if (onHour < 10)
+            str += "0";
+          str += onHour;
+          str += ":";
+          if (onMinute < 10)
+            str += "0";
+          str += onMinute;
+          display.getTextBounds(str.c_str(), 0, 0, &x1, &y1, &x2, &y2);
+          display.setCursor(128 - x2, 16);
+          display.print(str.c_str());
+
+          str = "";
+          if (offHour < 10)
+            str += "0";
+          str += offHour;
+          str += ":";
+          if (offMinute < 10)
+            str += "0";
+          str += offMinute;
+          display.getTextBounds(str.c_str(), 0, 0, &x1, &y1, &x2, &y2);
+          display.setCursor(128 - x2, 32);
+          display.print(str.c_str());
+        }
+
+        display.setCursor(0, 48);
+        if (autoHandler.size() == 0)
+        {
+          display.print("No entries");
+        }
+        else
+        {
+          display.print(autoSelect + 1);
+          display.print(" of ");
+          display.print(autoHandler.size());
+        }
+      break;
+      case TIME:
+        display.setTextSize(2);
+        display.getTextBounds(F("Time"), 0, 0, &x1, &y1, &x2, &y2);
+        display.setCursor(128 - x2, 0);
+        display.print(F("Time"));
+      break;
+      case DATE:
+        display.setTextSize(2);
+        display.getTextBounds(F("Date"), 0, 0, &x1, &y1, &x2, &y2);
+        display.setCursor(128 - x2, 0);
+        display.print(F("Date"));
+
+        const DateTime now = RTC.nowDST();
+        String dmString(now.day());
+        dmString += "/";
+        dmString += now.month();
+        String yString(now.year());
+
+        display.setTextSize(3);
+        display.getTextBounds(dmString.c_str(), 0, 0, &x1, &y1, &x2, &y2);
+        display.setCursor((128 - x2) / 2, 16);
+        display.print(dmString.c_str());
+
+        display.setTextSize(2);
+        display.getTextBounds(yString.c_str(), 0, 0, &x1, &y1, &x2, &y2);
+        display.setCursor((128 - x2) / 2, 48);
+        display.print(yString.c_str());
+      break;
+    }
+  }
+  else
+  {
+    if (autoMode)
+    {
+      display.setTextSize(2);
+      display.getTextBounds(F("Auto"), 0, 0, &x1, &y1, &x2, &y2);
+      display.setCursor(128 - x2, 0);
+      display.print(F("Auto"));
+    }
+  }
 
   display.display();
 }
 
 void setup()
 {
-  //digitalWrite(INDICATOR_R, HIGH);
-  //digitalWrite(INDICATOR_G, HIGH);
-
   delay(3000); // power up safety, apparently
-
-  Serial.begin(9600);
-
-  Serial.println("Starting");
 
   // start I2C
   Wire.begin();
 
   // start display
   if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C))
-  {
-    while (1)
-      Serial.println(F("Failed to begin display"));
-  }
+    while (1);
+
   display.clearDisplay();
   display.setTextColor(WHITE); // only options are white and black
   display.setTextWrap(false); // don't wrap text
@@ -412,10 +512,7 @@ void setup()
   RTC.begin();
   // Check to see if the RTC is keeping time.  If it is, load the time from your computer.
   if (!RTC.isrunning())
-  {
-    Serial.println(F("RTC is NOT running!"));
     RTC.adjust(DateTime(__DATE__, __TIME__));
-  }
 
 
   #ifdef USE_EEPROM_STORAGE
@@ -423,7 +520,7 @@ void setup()
     EEPROM.get(ADDRESS_CHECKSUM, checksum);
     if (checksum != EEPROM_crc()) // data corrupted, restore defaults
     {
-      Serial.prinln("Restoring EEPROM from defaults");
+      Serial.prinln(F("Restoring EEPROM from defaults"));
       EEPROM.put(ADDRESS_BRIGHTNESS, brightness);
       EEPROM.put(ADDRESS_SPEED, speed);
 
@@ -436,7 +533,7 @@ void setup()
     }
     else // data intact, load into memory
     {
-      Serial.prinln("Loading data from EEPROM");
+      Serial.prinln(F("Loading data from EEPROM"));
 
       EEPROM.get(ADDRESS_BRIGHTNESS, brightness);
       EEPROM.get(ADDRESS_SPEED, speed);
@@ -455,11 +552,11 @@ void updateLEDs()
 {
   if (usePalette)
   {
-    static uint8_t startIndex = 0;
+    static uint16_t startIndex = 0;
     if (paused == false)
       startIndex = startIndex + speed;
 
-    paletteLEDs(startIndex);
+    paletteLEDs(startIndex / 10);
   }
   else
   {
@@ -477,8 +574,6 @@ void loop()
 {
   handleIR(getIRCode());
 
-  //indicators();
-  //serial();
   screen();
 
   updateLEDs();

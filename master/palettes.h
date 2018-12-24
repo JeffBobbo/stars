@@ -14,6 +14,6 @@ extern const TProgmemPalette16 offwhite_p PROGMEM;
 extern const TProgmemPalette16 pinkBlue_p PROGMEM;
 
 // available palettes
-extern const CRGBPalette16 availablePalettes[] PROGMEM;
+CRGBPalette16 getPalette(const uint8_t idx);
 
 #endif
