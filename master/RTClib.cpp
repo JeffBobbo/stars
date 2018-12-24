@@ -131,6 +131,25 @@ uint32_t DateTime::unixtime(void) const {
   return t;
 }
 
+bool DateTime::isDST(void) const {
+  if (m > 3 && m < 10) // dst in full effect April..September
+    return true;
+
+  if (m == 3 || m == 10) // last Sunday will be within the last week
+  {
+    const uint8_t days = pgm_read_byte(daysInMonth + m - 1); // sunday is 0
+    DateTime lastDay(yOff, m, days, 0, 0, 0);
+    const uint8_t lastDoW = lastDay.dayOfWeek();
+    const uint8_t lastSunday = 31 - lastDoW;
+
+    if (m == 3 && (d > lastSunday || (d == lastSunday && hh >= 1)))
+      return true;
+    if (m == 10 && (d < lastSunday || (d == lastSunday && hh < 1)))
+      return true;
+  }
+  return false;
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // RTC_DS1307 implementation
 
@@ -181,8 +200,15 @@ DateTime RTC_DS1307::now() {
   uint8_t d = bcd2bin(Wire.read());
   uint8_t m = bcd2bin(Wire.read());
   uint16_t y = bcd2bin(Wire.read()) + 2000;
-  
-  return DateTime (y, m, d, hh, mm, ss);
+
+  return DateTime(y, m, d, hh, mm, ss);
+}
+
+DateTime RTC_DS1307::nowDST() {
+  DateTime dt = now();
+  if (dt.isDST())
+    return DateTime(dt.year(), dt.month(), dt.day(), dt.hour() + 1, dt.minute(), dt.second());
+  return dt;
 }
 
 #else
@@ -224,7 +250,7 @@ DateTime RTC_DS1307::now() {
   uint8_t d = bcd2bin(Wire.receive());
   uint8_t m = bcd2bin(Wire.receive());
   uint16_t y = bcd2bin(Wire.receive()) + 2000;
-  
+
   return DateTime (y, m, d, hh, mm, ss);
 }
 

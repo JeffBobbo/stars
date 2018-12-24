@@ -23,6 +23,8 @@ public:
     // 32-bit times as seconds since 1/1/1970
     uint32_t unixtime(void) const;
 
+    bool isDST() const;
+
 protected:
     uint8_t yOff, m, d, hh, mm, ss;
 };
@@ -34,6 +36,7 @@ public:
     static void adjust(const DateTime& dt);
     uint8_t isrunning(void);
     static DateTime now();
+    static DateTime nowDST();
 };
 
 // RTC using the internal millis() clock, has to be initialized before use
