@@ -1,74 +1,93 @@
 #include <Arduino.h>
 
-#include <FastLED.h>
-#include <Wire.h>
-
 #ifdef USE_EEPROM_STORAGE
 #include <EEPROM.h>
 #endif
-
-#include "RTClib.h"
+#include <IRLremote.h>
+#include <FastLED.h>
+#include <Wire.h>
 
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 
+#include "RTClib.h"
+
+#include "controller_mapping.h"
+#include "common.h"
+#include "edit.h"
+#include "global.h"
+
 Adafruit_SSD1306 display(128, 64);
 
-//#include "../common.h"
-const uint8_t SLAVE_ADDRESS = 9;
-const size_t DATA_SIZE = sizeof(uint32_t);
-
-#include "global.h"
-#include "controller_mapping.h"
-#include "palettes.h"
-#include "edit.h"
+const int IR_PIN = 2;
+CNec IRLremote;
 
 // overrides auto mode
 bool autoPowerOff = false;
 
-uint32_t buttonColour(const uint32_t button)
+void buttonColour(const uint8_t button)
 {
   switch (button)
   {
     case BUTTON_RED:
-      return CRGB::Red;
+      data.colour = CRGB::Red;
+    break;
     case BUTTON_GREEN:
-      return CRGB::Lime;
+      data.colour = CRGB::Lime;
+    break;
     case BUTTON_BLUE:
-      return CRGB::Blue;
+      data.colour = CRGB::Blue;
+    break;
     case BUTTON_WHITE:
-      return CRGB::White;
+      data.colour = CRGB::White;
+    break;
 
     case BUTTON_DARK_ORANGE:
-      return CRGB::OrangeRed;
+      data.colour = CRGB::OrangeRed;
+    break;
     case BUTTON_LIME:
-      return CRGB::ForestGreen;
+      data.colour = CRGB::ForestGreen;
+    break;
     case BUTTON_LIGHT_BLUE:
-      return CRGB::DodgerBlue;
+      data.colour = CRGB::DodgerBlue;
+    break;
 
     case BUTTON_ORANGE:
-      return CRGB::DarkOrange;
+      data.colour = CRGB::DarkOrange;
+    break;
     case BUTTON_TURQUIOSE:
-      return CRGB::DarkTurquoise;
+      data.colour = CRGB::DarkTurquoise;
+    break;
     case BUTTON_MAUVE:
-      return CRGB::Sienna;
+      data.colour = CRGB::Sienna;
+    break;
 
     case BUTTON_LIGHT_ORANGE:
-      return CRGB::Orange;
+      data.colour = CRGB::Orange;
+    break;
     case BUTTON_TEAL:
-      return CRGB::Teal;
+      data.colour = CRGB::Teal;
+    break;
     case BUTTON_PURPLE:
-      return CRGB::Purple;
+      data.colour = CRGB::Purple;
+    break;
 
     case BUTTON_YELLOW:
-      return CRGB::Yellow;
+      data.colour = CRGB::Yellow;
+    break;
     case BUTTON_DARK_GREEN:
-      return CRGB::DarkGreen;
+      data.colour = CRGB::DarkGreen;
+    break;
     case BUTTON_PINK:
-      return CRGB::DeepPink;
+      data.colour = CRGB::DeepPink;
+    break;
     default:
-      return CRGB::Black;
+      data.colour = CRGB::Black;
+    break;
   }
+
+  data.usePalette = false;
+  data.mode = SOLID;
 }
 
 void buttonMode(const uint32_t button)
@@ -76,17 +95,20 @@ void buttonMode(const uint32_t button)
   switch (button)
   {
     case BUTTON_FLASH:
-      mode = TWINKLE;
+      data.mode = TWINKLE;
     break;
     case BUTTON_JUMP_THREE:
-      mode = JUMP_THREE;
+      data.mode = JUMP_THREE;
+    break;
     case BUTTON_JUMP_SEVEN:
-      mode = JUMP_SEVEN;
+      data.mode = JUMP_SEVEN;
     break;
     case BUTTON_FADE_THREE:
-      mode = FADE_THREE;
+      data.mode = FADE_THREE;
+    break;
     case BUTTON_FADE_SEVEN:
-      mode = FADE_SEVEN;
+      data.mode = FADE_SEVEN;
+    break;
     break;
   }
 }
@@ -100,18 +122,18 @@ void buttonPalette(const uint32_t button)
     case BUTTON_DIY_THREE:
     case BUTTON_DIY_FOUR:
     case BUTTON_DIY_FIVE:
-      currentPalette = getPalette(mappedPalette[diy(button)]);
+      data.palette = mappedPalette[diy(button)];
     break;
     default:
-      usePalette = false;
-      fill_solid(leds, NUM_LEDS, CRGB::Black);
+      data.usePalette = false;
+      //fill_solid(leds, NUM_LEDS, CRGB::Black);
     break;
   }
 }
 
 void handleDIY(const uint32_t button)
 {
-  usePalette = true;
+  data.usePalette = true;
   buttonPalette(button);
 }
 
@@ -137,10 +159,10 @@ bool lightsOn()
   return powerOn;
 }
 
-void handleIR(const uint32_t value)
+void handleIR(const uint8_t value)
 {
   // filter out anything unknown
-  if ((value & 0xFFFF0000) != 0x00FF0000)
+  if (!value)
     return;
 
   if (editMode)
@@ -152,25 +174,23 @@ void handleIR(const uint32_t value)
   switch (value)
   {
     case BUTTON_BRIGHTNESS_INC:
-      if (brightness < MAX_BRIGHTNESS)
-        brightness += INC_BRIGHTNESS;
-      FastLED.setBrightness(brightness);
+      if (data.brightness < MAX_BRIGHTNESS)
+        data.brightness += INC_BRIGHTNESS;
     break;
     case BUTTON_BRIGHTNESS_DEC:
-      if (brightness > MIN_BRIGHTNESS)
-        brightness -= INC_BRIGHTNESS;
-      FastLED.setBrightness(brightness);
+      if (data.brightness > MIN_BRIGHTNESS)
+        data.brightness -= INC_BRIGHTNESS;
     break;
     case BUTTON_PLAYPAUSE:
-      paused = !paused;
+      data.paused = !data.paused;
     break;
     case BUTTON_POWER:
       if (autoMode && autoHandler.on())
         autoPowerOff = !autoPowerOff;
       else
         powerOn = !powerOn;      
-      if (powerOn && !usePalette)
-        fill_solid(leds, NUM_LEDS, colour);
+      //if (powerOn && !usePalette)
+        //fill_solid(leds, NUM_LEDS, colour);
     break;
     case BUTTON_RED:
     case BUTTON_GREEN:
@@ -188,9 +208,7 @@ void handleIR(const uint32_t value)
     case BUTTON_YELLOW:
     case BUTTON_DARK_GREEN:
     case BUTTON_PINK:
-      usePalette = false;
-      mode = SOLID;
-      fill_solid(leds, NUM_LEDS, colour = buttonColour(value));
+      buttonColour(value);
     break;
     case BUTTON_DIY_ONE:
     case BUTTON_DIY_TWO:
@@ -203,12 +221,12 @@ void handleIR(const uint32_t value)
       editMode = !editMode;
     break;
     case BUTTON_QUICK:
-      if (speed < MAX_SPEED)
-        ++speed;
+      if (data.speed < MAX_SPEED)
+        ++data.speed;
     break;
     case BUTTON_SLOW:
-      if (speed > MIN_SPEED)
-        --speed;
+      if (data.speed > MIN_SPEED)
+        --data.speed;
     break;
     case BUTTON_AUTO:
       autoMode = !autoMode;
@@ -221,97 +239,21 @@ void handleIR(const uint32_t value)
     case BUTTON_FADE_SEVEN:
       buttonMode(value);
     break;
-    case BUTTON_HOLD:
-    break;
     default:
      break;
   }
 }
 
-uint8_t modeBrightness(const int i)
+uint8_t getIRCode()
 {
-  switch (mode)
+  if (IRLremote.available())
   {
-    case FADE_THREE:
-      return cubicwave8((millis()/25+i*25) % 255);
-    case FADE_SEVEN:
-      return cubicwave8((millis()/100+i*25) % 255);
-    case JUMP_THREE:
-      return (((millis() / 300) + i) % 2) * 255;
-    case JUMP_SEVEN:
-      return (((millis() / 700) + i) % 2) * 255;
-    default:
-      return 255;
+    auto data = IRLremote.read();
+
+    if (data.address == 0xFF00)
+      return data.command;
   }
-}
-
-void twinklePalette(uint8_t colorIndex)
-{
-  static uint8_t twinkle[NUM_LEDS] = {255};
-
-  for (int i = 0; i < NUM_LEDS; ++i)
-  {
-    leds[i] = ColorFromPalette(currentPalette, colorIndex, twinkle[i], currentBlending);
-    twinkle[i] -= 16;
-    colorIndex += 3;
-  }
-
-  if (random(3) == 0)
-    twinkle[random(NUM_LEDS)] = 255;
-}
-
-void paletteLEDs(uint8_t colorIndex)
-{
-  if (mode == TWINKLE)
-  {
-    twinklePalette(colorIndex);
-    return;
-  }
-    
-  for (int i = 0; i < NUM_LEDS; ++i)
-  {
-    leds[i] = ColorFromPalette(currentPalette, colorIndex, modeBrightness(i), currentBlending);
-    colorIndex += 3;
-  }
-}
-
-void solidLEDs()
-{
-  if (mode == TWINKLE)
-  {
-    // fade all
-    for (int i = 0; i < NUM_LEDS; ++i)
-      leds[i].fadeToBlackBy(8);
-
-    // brighten some
-    if (random(2) == 0)
-    {
-      for (int i = 0; i < 1; ++i)
-        leds[random(NUM_LEDS)] = colour;
-    }
-    return;
-  }
-
-  for (int i = 0; i < NUM_LEDS; ++i)
-  {
-    leds[i] = colour;
-    leds[i] %= modeBrightness(i);
-  }
-}
-
-uint32_t getIRCode()
-{
-  Wire.requestFrom(SLAVE_ADDRESS, DATA_SIZE);
-
-  union {
-    uint8_t a[DATA_SIZE];
-    uint32_t i;
-  } buf;
-  buf.i = 0;
-  for (size_t i = 0; i < DATA_SIZE && Wire.available(); ++i)
-    buf.a[i] = Wire.read();
-
-  return buf.i;
+  return 0;
 }
 
 void screen()
@@ -335,6 +277,15 @@ void screen()
   }
   */
 
+  if (!editMode)
+  {
+    uint8_t brightness = ((data.brightness+1) / 256.0f) * 100;
+    display.setCursor(0, 0);
+    display.setTextSize(2);
+    display.print(F("B:"));
+    display.print(brightness);
+  }
+
   if (!editMode || editState == TIME)
   {
     const DateTime now = RTC.nowDST();
@@ -349,8 +300,23 @@ void screen()
 
     display.setTextSize(4);
     display.getTextBounds(timestamp.c_str(), 0, 0, &x1, &y1, &x2, &y2);
-    display.setCursor((128 - x2) / 2, (48 - y2) / 2 + 16);
+    if (editState == TIME)
+      display.setCursor((128 - x2) / 2, 16);//(48 - y2) / 2 + 16);
+    else
+      display.setCursor((128 - x2) / 2, (48 - y2) / 2 + 16);
     display.print(timestamp.c_str());
+
+    if (editState == TIME)
+    {
+      String seconds;
+      if (now.second() < 10)
+        seconds += "0";
+      seconds += now.second();
+      display.setTextSize(2);
+      display.getTextBounds(seconds.c_str(), 0, 0, &x1, &y1, &x2, &y2);
+      display.setCursor((128 - x2) / 2, 48);
+      display.print(seconds.c_str());
+    }
   }
 
   if (editMode)
@@ -372,13 +338,17 @@ void screen()
         display.setCursor(0, 16);
         display.print(F("DIY: "));
         if (paletteSelect != 6)
-          display.print(paletteSelect);
+          display.print(paletteSelect + 1);
         else
           display.print("Select");
         if (paletteSelect != 6)
         {
           display.setCursor(0, 32);
           display.print(F("Palette: "));
+
+          String palette(mappedPalette[paletteSelect]);
+          display.getTextBounds(palette.c_str(), 0, 0, &x1, &y1, &x2, &y2);
+          display.setCursor(128 - x2, 32);
           display.print(mappedPalette[paletteSelect]);
         }
       break;
@@ -496,6 +466,18 @@ void setup()
 {
   delay(3000); // power up safety, apparently
 
+  // start IR receiver
+  if (!IRLremote.begin(IR_PIN))
+  {
+    while (1)
+    {
+      digitalWrite(LED_BUILTIN, HIGH);
+      delay(100);
+      digitalWrite(LED_BUILTIN, LOW);
+      delay(100);
+    }
+  }
+
   // start I2C
   Wire.begin();
 
@@ -542,39 +524,21 @@ void setup()
         EEPROM.get(ADDRESS_PALETTE + i, mappedPalette[i]);
     }
   #endif
-
-  FastLED.addLeds<LED_TYPE, LED_PIN, COLOR_ORDER>(leds, NUM_LEDS).setCorrection(TypicalLEDStrip);
-  FastLED.setBrightness(brightness);
-  fill_solid(leds, NUM_LEDS, CRGB::White);
-}
-
-void updateLEDs()
-{
-  if (usePalette)
-  {
-    static uint16_t startIndex = 0;
-    if (paused == false)
-      startIndex = startIndex + speed;
-
-    paletteLEDs(startIndex / 10);
-  }
-  else
-  {
-    solidLEDs();
-  }
-
-  if (lightsOn())
-    FastLED.show();
-  else
-    FastLED.clear();
-  FastLED.delay(1000 / UPDATES_PER_SECOND);
 }
 
 void loop()
 {
   handleIR(getIRCode());
 
+  data.lightsOn = lightsOn();
+
+  Wire.beginTransmission(SLAVE_ADDRESS);
+  uint8_t* ptr = reinterpret_cast<uint8_t* >(&data);
+  for (size_t i = 0; i < sizeof(data); ++i)
+    Wire.write(ptr[i]);
+  Wire.endTransmission();
+
   screen();
 
-  updateLEDs();
+  delay(100);
 }

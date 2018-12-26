@@ -1,8 +1,5 @@
 #include "palettes.h"
 
-CRGBPalette16 currentPalette;
-TBlendType currentBlending = LINEARBLEND;
-
 const TProgmemPalette16 pinkPurpleWhite_p PROGMEM =
 {
   CRGB::White,
@@ -29,24 +26,24 @@ const TProgmemPalette16 pinkPurpleWhite_p PROGMEM =
 const TProgmemPalette16 offwhite_p PROGMEM =
 {
   0xFFFFFF,
-  0xFFFFAF,
-  0x7F7F7F,
-  0xAFAFFF,
+  0xFFFF7F,
+  0xFFFF7F,
+  0x7F7FFF,
+
+  0x7F7FFF,
+  0xFFFFFF,
+  0xFFFF7F,
+  0xFFFF7F,
+
+  0x7F7FFF,
+  0xFFFFFF,
+  0xFFFF7F,
+  0x7F7FFF,
 
   0xFFFFFF,
-  0xFFFFAF,
-  0x7F7F7F,
+  0xFFFF7F,
   0xAFAFFF,
-
-  0xFFFFFF,
-  0xFFFFAF,
-  0x7F7F7F,
-  0xAFAFFF,
-
-  0xFFFFFF,
-  0xFFFFAF,
-  0x7F7F7F,
-  0xAFAFFF
+  0xFFFFFF
 };
 
 const TProgmemPalette16 pinkBlue_p PROGMEM =

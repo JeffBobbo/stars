@@ -2,7 +2,6 @@
 
 #include "controller_mapping.h"
 #include "global.h"
-#include "palettes.h"
 
 EditMode editState;
 
@@ -15,7 +14,10 @@ void changePalette(const uint32_t button)
   else
     paletteSelect = selection;
   if (paletteSelect != 6)
-    currentPalette = getPalette(mappedPalette[paletteSelect]);
+  {
+    data.usePalette = true;  
+    data.palette = mappedPalette[paletteSelect];
+  }
 }
 
 void editPalette(const uint32_t value)
@@ -108,28 +110,30 @@ void editTime(const uint32_t value)
   switch (value)
   {
     case BUTTON_RED_UP:
-      RTC.adjust(DateTime(now.year(), now.month(), now.day(), now.hour()+1, now.minute(), now.second()));
+      now.incHour();
     break;
     case BUTTON_RED_DOWN:
-      RTC.adjust(DateTime(now.year(), now.month(), now.day(), now.hour()-1, now.minute(), now.second()));
+      now.decHour();
     break;
     case BUTTON_GREEN_UP:
-      RTC.adjust(DateTime(now.year(), now.month(), now.day(), now.hour(), now.minute()+1, now.second()));
+      now.incMinute();
     break;
     case BUTTON_GREEN_DOWN:
-      RTC.adjust(DateTime(now.year(), now.month(), now.day(), now.hour(), now.minute()-1, now.second()));
+      now.decMinute();
     break;
     case BUTTON_BLUE_UP:
-      RTC.adjust(DateTime(now.year(), now.month(), now.day(), now.hour(), now.minute(), now.second()+1));
+      now.incSecond();
     break;
     case BUTTON_BLUE_DOWN:
-      RTC.adjust(DateTime(now.year(), now.month(), now.day(), now.hour(), now.minute(), now.second()-1));
+      now.decSecond();
     break;
     case BUTTON_DIY_SIX:
       editState = NONE;
+      return;
     default:
     break;
   }
+  RTC.adjust(now);
 }
 
 void editDate(const uint32_t value)
@@ -139,28 +143,30 @@ void editDate(const uint32_t value)
   switch (value)
   {
     case BUTTON_RED_UP:
-      RTC.adjust(DateTime(now.year(), now.month(), now.day()+1, now.hour(), now.minute(), now.second()));
+      now.incDay();
     break;
     case BUTTON_RED_DOWN:
-      RTC.adjust(DateTime(now.year(), now.month(), now.day()-1, now.hour(), now.minute(), now.second()));
+      now.decDay();
     break;
     case BUTTON_GREEN_UP:
-      RTC.adjust(DateTime(now.year(), now.month()+1, now.day(), now.hour(), now.minute(), now.second()));
+      now.incMonth();
     break;
     case BUTTON_GREEN_DOWN:
-      RTC.adjust(DateTime(now.year(), now.month()-1, now.day(), now.hour(), now.minute(), now.second()));
+      now.decMonth();
     break;
     case BUTTON_BLUE_UP:
-      RTC.adjust(DateTime(now.year()+1, now.month(), now.day(), now.hour(), now.minute(), now.second()));
+      now.incYear();
     break;
     case BUTTON_BLUE_DOWN:
-      RTC.adjust(DateTime(now.year()-1, now.month(), now.day(), now.hour(), now.minute(), now.second()));
+      now.decYear();
     break;
     case BUTTON_DIY_SIX:
       editState = NONE;
+      return;
     default:
     break;
   }
+  RTC.adjust(now);
 }
 
 
@@ -187,18 +193,17 @@ void editIR(const uint32_t value)
     return;
   }
 
-  static bool oldPalette;
+  static bool oldUsePalette;
   static Mode oldMode; 
   switch (value)
   {
     case BUTTON_DIY_ONE:
     {
-      oldPalette = usePalette;
-      oldMode = mode;
+      oldUsePalette = data.usePalette;
+      oldMode = data.mode;
 
       editState = PALETTE;
-      usePalette = true;
-      mode = SOLID;
+      data.mode = SOLID;
     }
     break;
     case BUTTON_DIY_TWO:
@@ -211,8 +216,8 @@ void editIR(const uint32_t value)
       editState = DATE;
     break;
     case BUTTON_DIY_SIX:
-      usePalette = oldPalette;
-      mode = oldMode;
+      data.usePalette = oldUsePalette;
+      data.mode = oldMode;
       editMode = false;
     default:
     break;

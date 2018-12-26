@@ -1,36 +1,19 @@
 #ifndef GLOBAL_H_INCLUDE
 #define GLOBAL_H_INCLUDE
 
-#include <FastLED.h>
 #include <stdint.h>
 
 #include "RTClib.h"
 #include "auto.h"
+#include "common.h"
 
-extern const uint8_t UPDATES_PER_SECOND;
-#define LED_PIN 6
-#define NUM_LEDS 15
-#define LED_TYPE WS2812
-#define COLOR_ORDER GRB
-extern CRGB leds[NUM_LEDS];
-
-enum Mode {
-  SOLID = 0,
-  FADE_THREE,
-  FADE_SEVEN,
-  JUMP_THREE,
-  JUMP_SEVEN,
-  TWINKLE
-};
-extern Mode mode;
+extern ControlData data;
 
 extern bool editMode;
 extern bool autoMode;
 extern bool powerOn;
 extern bool usePalette;
 extern bool paused;
-
-extern uint32_t colour;
 
 extern const uint8_t MAX_BRIGHTNESS;
 extern const uint8_t MIN_BRIGHTNESS;

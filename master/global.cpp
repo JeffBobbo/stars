@@ -1,31 +1,31 @@
 #include "global.h"
 
+#include <Arduino.h>
 #include <EEPROM.h>
 
-const uint8_t UPDATES_PER_SECOND = 100;
-CRGB leds[NUM_LEDS];
+const uint8_t MAX_BRIGHTNESS = 255;
+const uint8_t MIN_BRIGHTNESS = 31;
+const uint8_t INC_BRIGHTNESS = 32;
 
-//const int INDICATOR_R = 2;
-//const int INDICATOR_G = 3;
+const uint8_t MAX_SPEED = 16;
+const uint8_t MIN_SPEED = 2;
+
+ControlData data = {
+  0,
+  0xFFFFFF,
+  SOLID,
+  false,
+  false,
+  false,
+  MAX_BRIGHTNESS,
+  MAX_SPEED / 2
+};
 
 Mode mode;
 
 bool editMode = false;
 bool autoMode = false;
 bool powerOn = true;
-bool usePalette = false;
-bool paused = false;
-
-uint32_t colour = CRGB::White;
-
-const uint8_t MAX_BRIGHTNESS = 255;
-const uint8_t MIN_BRIGHTNESS = 31;
-const uint8_t INC_BRIGHTNESS =  32;
-uint8_t brightness = MAX_BRIGHTNESS;
-
-const uint8_t MAX_SPEED = 24;
-const uint8_t MIN_SPEED = 6;
-uint8_t speed = MAX_SPEED / 2;
 
 uint8_t mappedPalette[5] = {0, 5, 10, 1, 2};
 

@@ -5,9 +5,6 @@
 
 #include <FastLED.h>
 
-extern CRGBPalette16 currentPalette;
-extern TBlendType currentBlending;
-
 // custom palettes
 extern const TProgmemPalette16 pinkPurpleWhite_p PROGMEM;
 extern const TProgmemPalette16 offwhite_p PROGMEM;

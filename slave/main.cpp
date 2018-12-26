@@ -1,48 +1,152 @@
 #include <Arduino.h>
-#include <IRremote.h>
+#include <FastLED.h>
 #include <Wire.h>
 
-//#include "../common.h"
-const uint8_t SLAVE_ADDRESS = 9;
+#include "palettes.h"
 
-const int IR_PIN = 7;
-IRrecv irrecv(IR_PIN);
-decode_results results;
-uint32_t current = 0;
+#include "common.h"
 
-const uint8_t NO_DATA[] = {0xFF, 0xFF, 0xFF, 0xFF};
-const size_t DATA_SIZE = sizeof(uint32_t);
+// floating input pin for randomSeed
+const uint8_t RANDOM_PIN = 0;
 
-void requestEvent()
+#define LED_PIN 8
+#define NUM_LEDS 21
+#define LED_TYPE WS2812
+#define COLOR_ORDER GRB
+const uint8_t UPDATES_PER_SECOND = 100;
+CRGB leds[NUM_LEDS];
+
+ControlData data = {
+  0,
+  CRGB::White,
+  SOLID,
+  false,
+  false,
+  true,
+  127,
+  6
+};
+
+uint8_t modeBrightness(const int i)
 {
-  if (current)
+  switch (data.mode)
   {
-    Wire.write(reinterpret_cast<byte*>(&current), DATA_SIZE);
-    current = 0;
+    case FADE_THREE:
+      return cubicwave8((millis() / 5000.0f + (3.0f * i) / NUM_LEDS) * 255);
+    case FADE_SEVEN:
+      return cubicwave8((millis() / 5000.0f + (7.0f * i) / NUM_LEDS) * 255);
+    case JUMP_THREE:
+      return (((millis() / 300) + i) % 2) * 255;
+    case JUMP_SEVEN:
+      return (((millis() / 700) + i) % 2) * 255;
+    default:
+      return 255;
+  }
+}
+
+void twinklePalette(uint8_t colorIndex)
+{
+  static uint8_t twinkle[NUM_LEDS] = {255};
+
+  for (int i = 0; i < NUM_LEDS; ++i)
+  {
+    leds[i] = ColorFromPalette(getPalette(data.palette), colorIndex, twinkle[i], LINEARBLEND);
+    twinkle[i] -= 16;
+    colorIndex += 3;
+  }
+
+  if (random(3) == 0)
+    twinkle[random(NUM_LEDS)] = 255;
+}
+
+void paletteLEDs(uint8_t colorIndex)
+{
+  if (data.mode == TWINKLE)
+  {
+    twinklePalette(colorIndex);
+    return;
+  }
+
+  for (int i = 0; i < NUM_LEDS; ++i)
+  {
+    leds[i] = ColorFromPalette(getPalette(data.palette), colorIndex, modeBrightness(i), LINEARBLEND);
+    colorIndex += 3;
+  }
+}
+
+void solidLEDs()
+{
+  if (data.mode == TWINKLE)
+  {
+    // fade all
+    for (int i = 0; i < NUM_LEDS; ++i)
+      leds[i].fadeToBlackBy(8);
+
+    // brighten some
+    if (random(2) == 0)
+    {
+      for (int i = 0; i < 1; ++i)
+        leds[random(NUM_LEDS)] = data.colour;
+    }
+    return;
+  }
+
+  for (int i = 0; i < NUM_LEDS; ++i)
+  {
+    leds[i] = data.colour;
+    leds[i] %= modeBrightness(i);
+  }
+}
+
+void updateLEDs()
+{
+  if (data.usePalette)
+  {
+    static uint16_t startIndex = 0;
+    if (!data.paused)
+      startIndex = startIndex + data.speed;
+
+    paletteLEDs(startIndex / 10);
   }
   else
   {
-    Wire.write(NO_DATA, DATA_SIZE);
+    solidLEDs();
   }
+
+  if (data.lightsOn)
+    FastLED.show();
+  else
+    FastLED.clear();
+  FastLED.delay(1000 / UPDATES_PER_SECOND);
+}
+
+void receiveEvent(int bytes)
+{
+  uint8_t* ptr = reinterpret_cast<uint8_t*>(&data);
+
+  for (int i = 0; i < bytes; ++i)
+    ptr[i] = Wire.read();
+
+  FastLED.setBrightness(data.brightness);
 }
 
 void setup()
 {
-  Wire.begin(SLAVE_ADDRESS);
-  Wire.onRequest(requestEvent);
+  delay(3000); // power up safety delay, apparently
 
-  irrecv.enableIRIn();
-  irrecv.blink13(true);
+  Wire.begin(SLAVE_ADDRESS);
+  Wire.onReceive(receiveEvent);
+
+  FastLED.addLeds<LED_TYPE, LED_PIN, COLOR_ORDER>(leds, NUM_LEDS).setCorrection(TypicalLEDStrip);
+  FastLED.setBrightness(255);
+  fill_solid(leds, NUM_LEDS, CRGB::White);
+
+  randomSeed(analogRead(RANDOM_PIN));
+
+  Serial.begin(9600);
 }
 
 void loop()
 {
-  if (irrecv.decode(&results))
-  {
-    const uint32_t value = results.value;
-    if ((value & 0xFFFF0000) == 0x00FF0000)
-      current = value;
-    irrecv.resume();
-  }
-  delay(100);
+  updateLEDs();
 }
