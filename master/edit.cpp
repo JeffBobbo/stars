@@ -105,60 +105,60 @@ void editAuto(const uint32_t value)
 
 void editTime(const uint32_t value)
 {
-  DateTime now = RTC.now();
+  DateTime now = RTC.nowDST();
 
   switch (value)
   {
     case BUTTON_RED_UP:
-      now.incHour();
+      RTC.adjust(DateTime(now.unixtime() + 3600));
     break;
     case BUTTON_RED_DOWN:
-      now.decHour();
+      RTC.adjust(DateTime(now.unixtime() - 3600));
     break;
     case BUTTON_GREEN_UP:
-      now.incMinute();
+      RTC.adjust(DateTime(now.unixtime() + 60));
     break;
     case BUTTON_GREEN_DOWN:
-      now.decMinute();
+      RTC.adjust(DateTime(now.unixtime() - 60));
     break;
     case BUTTON_BLUE_UP:
-      now.incSecond();
+      RTC.adjust(DateTime(now.unixtime() + 1));
     break;
     case BUTTON_BLUE_DOWN:
-      now.decSecond();
+      RTC.adjust(DateTime(now.unixtime() - 1));
     break;
     case BUTTON_DIY_SIX:
       editState = NONE;
-      return;
     default:
     break;
   }
-  RTC.adjust(now);
 }
 
 void editDate(const uint32_t value)
 {
-  DateTime now = RTC.now();
+  DateTime now = RTC.nowDST();
 
   switch (value)
   {
     case BUTTON_RED_UP:
-      now.incDay();
+      RTC.adjust(DateTime(now.unixtime() + 86400));
     break;
     case BUTTON_RED_DOWN:
-      now.decDay();
+      RTC.adjust(DateTime(now.unixtime() - 86400));
     break;
     case BUTTON_GREEN_UP:
-      now.incMonth();
+      RTC.adjust(DateTime(now.unixtime() + 86400UL * DateTime::daysInMonth(now.month())));
     break;
     case BUTTON_GREEN_DOWN:
-      now.decMonth();
+      RTC.adjust(DateTime(now.unixtime() - 86400UL * DateTime::daysInMonth(now.month())));
     break;
     case BUTTON_BLUE_UP:
-      now.incYear();
+      RTC.adjust(DateTime(now.year() + 1, now.month(), now.day(),
+                          now.hour(), now.minute(), now.second()));
     break;
     case BUTTON_BLUE_DOWN:
-      now.decYear();
+      RTC.adjust(DateTime(now.year() - 1, now.month(), now.day(),
+                          now.hour(), now.minute(), now.second()));
     break;
     case BUTTON_DIY_SIX:
       editState = NONE;
@@ -166,7 +166,6 @@ void editDate(const uint32_t value)
     default:
     break;
   }
-  RTC.adjust(now);
 }
 
 
@@ -194,13 +193,13 @@ void editIR(const uint32_t value)
   }
 
   static bool oldUsePalette;
-  static Mode oldMode; 
+  static Mode oldMode;  
+  oldUsePalette = data.usePalette;
+  oldMode = data.mode;
   switch (value)
   {
     case BUTTON_DIY_ONE:
     {
-      oldUsePalette = data.usePalette;
-      oldMode = data.mode;
 
       editState = PALETTE;
       data.mode = SOLID;

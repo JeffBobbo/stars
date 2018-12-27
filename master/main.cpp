@@ -277,13 +277,17 @@ void screen()
   }
   */
 
-  if (!editMode)
+  if (editMode && editState == NONE)
   {
     uint8_t brightness = ((data.brightness+1) / 256.0f) * 100;
-    display.setCursor(0, 0);
+    display.setCursor(0, 16);
     display.setTextSize(2);
-    display.print(F("B:"));
+    display.print(F("Bright:"));
     display.print(brightness);
+
+    display.setCursor(0, 32);
+    display.print(F("Speed: "));
+    display.print(data.speed);
   }
 
   if (!editMode || editState == TIME)
@@ -432,6 +436,7 @@ void screen()
 
         const DateTime now = RTC.nowDST();
         String dmString(now.day());
+        Serial.print(dmString.c_str());
         dmString += "/";
         dmString += now.month();
         String yString(now.year());
@@ -464,8 +469,6 @@ void screen()
 
 void setup()
 {
-  delay(3000); // power up safety, apparently
-
   // start IR receiver
   if (!IRLremote.begin(IR_PIN))
   {
@@ -524,6 +527,7 @@ void setup()
         EEPROM.get(ADDRESS_PALETTE + i, mappedPalette[i]);
     }
   #endif
+    Serial.begin(9600);
 }
 
 void loop()

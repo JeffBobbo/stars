@@ -22,8 +22,8 @@ ControlData data = {
   SOLID,
   false,
   false,
-  true,
-  127,
+  false,
+  255,
   6
 };
 
@@ -142,8 +142,6 @@ void setup()
   fill_solid(leds, NUM_LEDS, CRGB::White);
 
   randomSeed(analogRead(RANDOM_PIN));
-
-  Serial.begin(9600);
 }
 
 void loop()

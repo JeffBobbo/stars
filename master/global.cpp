@@ -25,7 +25,7 @@ Mode mode;
 
 bool editMode = false;
 bool autoMode = false;
-bool powerOn = true;
+bool powerOn = false;
 
 uint8_t mappedPalette[5] = {0, 5, 10, 1, 2};
 

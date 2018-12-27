@@ -60,8 +60,49 @@ bool AutoHandler::on() const
   for (uint8_t i = 0; i < count; ++i)
   {
     const Entry& e = entries[i];
+    if (e.offTime < e.onTime) // wraps around the week
+    {
+      if (s > e.onTime || s < e.offTime)
+      {
+        Serial.print(F("on with wrap for "));
+        Serial.println(i);
+        Serial.print(F("on: "));
+        Serial.print(e.onTime);
+        Serial.print(F(", off: "));
+        Serial.print(e.offTime);
+        Serial.print(F(", at: "));
+        Serial.print(now.dayOfWeek());
+        Serial.print(F(" "));
+        Serial.print(now.hour());
+        Serial.print(F(":"));
+        Serial.print(now.minute());
+        Serial.print(F(":"));
+        Serial.println(now.second());
+        return true;
+      }
+    }
+    else if (s > e.onTime && s < e.offTime)
+    {
+      Serial.print(F("on for "));
+      Serial.println(i);
+      Serial.print(F("on: "));
+      Serial.print(e.onTime);
+      Serial.print(F(", off: "));
+      Serial.print(e.offTime);
+      Serial.print(F(", at: "));
+      Serial.print(now.dayOfWeek());
+      Serial.print(F(" "));
+      Serial.print(now.hour());
+      Serial.print(F(":"));
+      Serial.print(now.minute());
+      Serial.print(F(":"));
+      Serial.println(now.second());
+      return true;
+    }
+    /*
     if (s > e.onTime && (e.onTime < e.offTime ? s < e.offTime : s < e.offTime + WEEK))
       return true;
+    */
   }
   return false;
 }
