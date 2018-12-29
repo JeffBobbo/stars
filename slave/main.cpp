@@ -9,7 +9,7 @@
 // floating input pin for randomSeed
 const uint8_t RANDOM_PIN = 0;
 
-#define LED_PIN 8
+#define LED_PIN 2
 #define NUM_LEDS 21
 #define LED_TYPE WS2812
 #define COLOR_ORDER GRB
