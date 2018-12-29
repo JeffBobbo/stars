@@ -51,11 +51,11 @@ void twinklePalette(uint8_t colorIndex)
   for (int i = 0; i < NUM_LEDS; ++i)
   {
     leds[i] = ColorFromPalette(getPalette(data.palette), colorIndex, twinkle[i], LINEARBLEND);
-    twinkle[i] -= 16;
+    twinkle[i] -= 4;
     colorIndex += 3;
   }
 
-  if (random(3) == 0)
+  if (random(31) == 0)
     twinkle[random(NUM_LEDS)] = 255;
 }
 
@@ -64,13 +64,14 @@ void paletteLEDs(uint8_t colorIndex)
   if (data.mode == TWINKLE)
   {
     twinklePalette(colorIndex);
-    return;
   }
-
-  for (int i = 0; i < NUM_LEDS; ++i)
+  else
   {
-    leds[i] = ColorFromPalette(getPalette(data.palette), colorIndex, modeBrightness(i), LINEARBLEND);
-    colorIndex += 3;
+    for (int i = 0; i < NUM_LEDS; ++i)
+    {
+      leds[i] = ColorFromPalette(getPalette(data.palette), colorIndex, modeBrightness(i), LINEARBLEND);
+      colorIndex += 3;
+    }
   }
 }
 
@@ -84,10 +85,7 @@ void solidLEDs()
 
     // brighten some
     if (random(2) == 0)
-    {
-      for (int i = 0; i < 1; ++i)
-        leds[random(NUM_LEDS)] = data.colour;
-    }
+      leds[random(NUM_LEDS)] = data.colour;
     return;
   }
 
